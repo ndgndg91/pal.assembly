@@ -1,0 +1,50 @@
+# ==========================================
+# Python / Virtual Environment
+# ==========================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# PyCharm / IDEs
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ==========================================
+# OS generated files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==========================================
+# Logs and Databases
+# ==========================================
+*.log
+*.sql
+*.sqlite
+
+# ==========================================
+# ChromeDriver / Selenium specific
+# ==========================================
+# chromedriver 실행 파일이 로컬에 받아질 경우 제외
+chromedriver
+# Selenium 임시 프로필 폴더 제외
+assembly_helper_session*
