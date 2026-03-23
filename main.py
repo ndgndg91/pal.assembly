@@ -37,34 +37,12 @@ def setup_driver():
 
 if __name__ == "__main__":
     tasks = [
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_O2K6H0G3F1U7T0O9M3L8K3T1Q9P8Y0", "title": "본 개정안에 반대합니다.", "message": "해당 법안의 문제점이 다수 지적되고 있어 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_Q2P6Q0O3O1W6X1V1T0U7S0T1B2B1A5", "title": "본 개정안에 반대합니다.", "message": "국민적 공감대 형성이 부족한 법안이므로 부결되어야 합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_Y2F6G0E3F1D6E1C6D1K5L4K7I9I0H1", "title": "본 개정안에 반대합니다.", "message": "실질적 효과보다 혼란만 초래할 개정안이기에 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2E6C0E3C1C6A1J6J1H7I0H1H5F1G8", "title": "본 개정안에 반대합니다.", "message": "다양한 부작용과 문제점이 발생할 수 있어 개정안에 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_H2F6E0N3J1I7R1Q6N1K9J3R0Q1P4O8", "title": "본 개정안에 반대합니다.", "message": "오히려 상황을 악화시킬 수 있는 법안이므로 강하게 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2M6M0L3J0K9I1J8E3F3D5E6C1B7B7", "title": "본 개정안에 반대합니다.", "message": "개정안으로 인한 이점보다 피해가 더 클 것으로 판단되어 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_W2W6U0V3T0S9T0A9B4Z5A4Y0Z1X4F5", "title": "본 개정안에 반대합니다.", "message": "법안 통과 시 미칠 파장이 크므로 신중히 폐기되어야 합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_R2R6P0O3P0N9N0V9W2U8V3T8U3S8A6", "title": "본 개정안에 반대합니다.", "message": "사회적 갈등만 키우는 해당 개정안에 대해 반대 의사를 표명합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_L2K6K0S3P1N8Q1Z4X0U1C4C0A1Z4I9", "title": "본 개정안에 반대합니다.", "message": "충분한 협의가 없었던 무리한 법안 추진에 단호히 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_I2G6E0F3N0O9M1N3L5L3J3S1S6Q7R7", "title": "본 개정안에 반대합니다.", "message": "본 개정안의 취지에 동의하기 어려우며 반대 의견을 제출합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2F6D0D3L0M9K1I3J5H4I3Q0Q3P8P2", "title": "본 개정안에 반대합니다.", "message": "해당 개정안에 대해 심각한 우려를 표하며 강력히 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_C2A6B0Z3A0Y9Z1V8T2T7S3S8R1R6Z8", "title": "본 개정안에 반대합니다.", "message": "본 법안이 사회에 미칠 부정적 영향을 우려하여 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_J2J6I0I3Q0P9P0N9O2M7N0V5V9U9U1", "title": "본 개정안에 반대합니다.", "message": "불필요한 규제를 양산할 수 있어 개정안 통과를 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_K2K6S0T3R1R6Q1R5P5P3X4W8W4V2V8", "title": "본 개정안에 반대합니다.", "message": "개정안의 부작용이 크다고 생각되어 이에 명확히 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2C6D0Y3Z0X9Y1W8V2V8D0D5C1C7B1", "title": "본 개정안에 반대합니다.", "message": "다수 국민의 공감을 얻지 못하는 법안이므로 부결되어야 마땅합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_F2D5E1C1D2L6L1J4K5J2H5H9P5Q0O8", "title": "본 개정안에 반대합니다.", "message": "신중한 검토 없이 발의된 법안으로 생각되어 전면 폐기를 요구합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_G2G6E0F3D0E9C1Y3Y5X3X5W9W1U5V9", "title": "본 개정안에 반대합니다.", "message": "법안이 통과되었을 때의 역기능이 순기능을 압도할 것이 자명하여 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_Q2Y6B0A3X1F7F1D1C4L0K4J5G1M5M1", "title": "본 개정안에 반대합니다.", "message": "현실과 동떨어진 개정안이므로 강력하게 반대 의견을 표합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_V2D6D0B1C3B0Z1Z5H1I5G5H9F5G3E9", "title": "본 개정안에 반대합니다.", "message": "개정안의 무리한 통과에 반대하며 원점 재검토를 촉구합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_W2W6V0V3D1C3C1A5B4Z5A1W7W0V7T6", "title": "본 개정안에 반대합니다.", "message": "입법 취지와 실효성이 의심스러운 법안으로 결사 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_H2G6G0F2F0B2B1A7Y1Z3X2X1F1G3E7", "title": "본 개정안에 반대합니다.", "message": "법안 통과로 인해 야기될 혼란을 고려하여 반대 의견을 제시합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_V2C6D0B2A1A0Z1Z3V4W6U1V2T2T4S2", "title": "본 개정안에 반대합니다.", "message": "해당 개정안은 오히려 관련 문제를 심화시킬 우려가 있어 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_P2Q6O0P3N1O6W0W9U3T3U5S1S7O1O3", "title": "본 개정안에 반대합니다.", "message": "사회적 수용성이 낮은 무리한 입법이므로 강력히 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_T2T6S0A3A1Y6Z1X1I1I9H2I4G6G6C0", "title": "본 개정안에 반대합니다.", "message": "해당 법안의 실익을 찾기 어려워 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_U2Q6Q0O3Q1O3O1M3V2V3T1U2S3T4R4", "title": "본 개정안에 반대합니다.", "message": "부정적 파급 효과가 클 것으로 예측되어 개정안에 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_C2B6Z0Z3Y1Y0N1O7M0N0L3L8K9S2T0", "title": "본 개정안에 반대합니다.", "message": "법안의 통과에 단호히 반대하며, 깊이 있는 숙의를 촉구합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_K2S6T0R3S1Q6P1P5X2Y2W3W1U1V9U8", "title": "본 개정안에 반대합니다.", "message": "해당 개정안은 국민적 동의를 얻지 못한 무리한 법안입니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_F2D6E0C3C1K3J1J1I3I5G2H8W4X7V2", "title": "본 개정안에 반대합니다.", "message": "여러 부작용이 우려되는 바, 해당 법안에 명백한 반대 의사를 밝힙니다."}
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2U6T0S3R1X8W1Y3G0F4E3D0J1I0H8", "title": "본 개정안에 반대합니다.", "message": "해당 법안의 문제점이 다수 지적되고 있어 반대합니다."},
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_T2S6R0Z3Y1X8V1S7R5N0W4V6U6T0B8", "title": "본 개정안에 반대합니다.", "message": "국민적 공감대 형성이 부족한 법안이므로 부결되어야 합니다."},
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_U2T6T0B2A2A4Y1Z3X5Y8G2G9F4F0E9", "title": "본 개정안에 반대합니다.", "message": "실질적 효과보다 혼란만 초래할 개정안이기에 반대합니다."},
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_N2U6V0T3U0S5T1R5S0Z9Y5Y0X6X2V5", "title": "본 개정안에 반대합니다.", "message": "다양한 부작용과 문제점이 발생할 수 있어 개정안에 반대합니다."},
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_N2O6W0W1V2T1U1S4S1H0I2G9H4F5E3", "title": "본 개정안에 반대합니다.", "message": "오히려 상황을 악화시킬 수 있는 법안이므로 강하게 반대합니다."},
+        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_W2U6V0U3S0S5A1B6Z4A8Y3Z2X3X9F0", "title": "본 개정안에 반대합니다.", "message": "개정안으로 인한 이점보다 피해가 더 클 것으로 판단되어 반대합니다."}
     ]
 
     try:
