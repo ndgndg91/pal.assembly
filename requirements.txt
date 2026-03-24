@@ -1,2 +1,4 @@
 selenium
 webdriver-manager
+google-genai
+python-dotenv

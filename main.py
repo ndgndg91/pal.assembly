@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+import fetch_links
 
 def setup_driver():
     """
@@ -36,14 +37,35 @@ def setup_driver():
     return driver
 
 if __name__ == "__main__":
-    tasks = [
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_E2U6T0S3R1X8W1Y3G0F4E3D0J1I0H8", "title": "본 개정안에 반대합니다.", "message": "해당 법안의 문제점이 다수 지적되고 있어 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_T2S6R0Z3Y1X8V1S7R5N0W4V6U6T0B8", "title": "본 개정안에 반대합니다.", "message": "국민적 공감대 형성이 부족한 법안이므로 부결되어야 합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_U2T6T0B2A2A4Y1Z3X5Y8G2G9F4F0E9", "title": "본 개정안에 반대합니다.", "message": "실질적 효과보다 혼란만 초래할 개정안이기에 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_N2U6V0T3U0S5T1R5S0Z9Y5Y0X6X2V5", "title": "본 개정안에 반대합니다.", "message": "다양한 부작용과 문제점이 발생할 수 있어 개정안에 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_N2O6W0W1V2T1U1S4S1H0I2G9H4F5E3", "title": "본 개정안에 반대합니다.", "message": "오히려 상황을 악화시킬 수 있는 법안이므로 강하게 반대합니다."},
-        {"url": "https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId=PRC_W2U6V0U3S0S5A1B6Z4A8Y3Z2X3X9F0", "title": "본 개정안에 반대합니다.", "message": "개정안으로 인한 이점보다 피해가 더 클 것으로 판단되어 반대합니다."}
-    ]
+    target_date = sys.argv[1] if len(sys.argv) > 1 else None
+    
+    if not target_date:
+        print("\n" + "="*60)
+        print(" [자동화 시작] 추출 및 등록을 진행할 마감 날짜를 입력하세요.")
+        print(" 형식: YYYY-MM-DD (예: 2026-03-30)")
+        print(" 그냥 Enter를 치시면 '최신 전체'를 추출하여 진행합니다.")
+        print("="*60)
+        user_input = input(" >>> 날짜 입력: ").strip()
+        if user_input:
+            target_date = user_input
+
+    # 1. 법안 데이터 자동 추출 및 AI 판별
+    tasks = fetch_links.fetch_and_print_links(target_date)
+    
+    if not tasks:
+        print("\n[시스템] 등록할 법안이 없어 프로그램을 종료합니다.")
+        sys.exit(0)
+
+    # 2. 사용자 최종 검토 단계
+    print("\n" + "="*60)
+    print(" [최종 검토] 위 출력된 AI 판별 결과(찬성/반대)를 확인해 주세요.")
+    print(" 이대로 브라우저를 열고 의견 등록 자동화를 시작하시겠습니까?")
+    print("="*60)
+    confirm = input(" >>> 진행하려면 'y' 또는 Enter를, 취소하려면 'n'을 입력하세요: ").strip().lower()
+    
+    if confirm == 'n':
+        print("\n[시스템] 사용자가 실행을 취소하여 프로그램을 종료합니다.")
+        sys.exit(0)
 
     try:
         driver = setup_driver()
