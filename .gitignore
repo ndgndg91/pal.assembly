@@ -48,3 +48,4 @@ Thumbs.db
 chromedriver
 # Selenium 임시 프로필 폴더 제외
 assembly_helper_session*
+.idea/
