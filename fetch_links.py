@@ -71,7 +71,7 @@ def fetch_and_print_links(target_date):
     사이트 접속 및 API 호출을 통해 법안 리스트를 가져오고 병렬로 분석합니다.
     """
     # 1. 기존에 처리된 ID 목록 불러오기
-    processed_ids = []
+    processed_ids = set()
     current_file_path = Path(__file__).resolve()
     history_file = current_file_path.parent / "processed_bills.json"
     
@@ -79,36 +79,27 @@ def fetch_and_print_links(target_date):
         try:
             with open(history_file, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
-                # 검색 속도 최적화를 위해 set으로 변환 (O(1) lookup)
                 processed_ids = set(history_data.get('processed_ids', []))
-            if processed_ids:
-                print(f"[시스템] 백로그에서 {len(processed_ids)}개의 이미 처리된 ID를 불러왔습니다.")
-        except Exception as e:
-            print(f"[경고] 백로그 파일을 읽는 중 오류 발생: {e}")
+        except Exception: pass
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     }
     
-    print(f"[시스템] 사이트 접속 및 보안 쿠키 발급 중...")
     session = requests.Session()
     session.headers.update(headers)
     
     try:
         session.get('https://vforkorea.com/assem/', timeout=10)
-    except Exception as e:
-        print(f"[오류 발생] 메인 페이지 접속 실패: {e}")
-        return []
+    except Exception: return []
 
-    print(f"[시스템] '{target_date if target_date else '전체'}' 마감 법안 탐색 중...")
-    
     api_headers = {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         'X-Requested-With': 'XMLHttpRequest',
         'Referer': 'https://vforkorea.com/assem/',
     }
     
+    all_bills = []
     bills_to_evaluate = []
     
     try:
@@ -130,68 +121,60 @@ def fetch_and_print_links(target_date):
                     continue
                     
                 lgslt_id = item.get('id')
-                if lgslt_id and lgslt_id not in processed_ids:
+                if not lgslt_id: continue
+
+                bill_data = {
+                    'id': lgslt_id,
+                    'url': f"https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId={lgslt_id}",
+                    'bill_title': item.get('title', '제목 없음'),
+                    'is_processed': lgslt_id in processed_ids,
+                    'is_good': False, # 기본값
+                    'ai_reason': "이미 처리됨" if lgslt_id in processed_ids else "분석 대기 중"
+                }
+
+                if not bill_data['is_processed']:
                     bills_to_evaluate.append({
-                        'id': lgslt_id,
-                        'url': f"https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId={lgslt_id}",
-                        'bill_title': item.get('title', '제목 없음'),
+                        'ref': bill_data,
+                        'title': item.get('title', ''),
                         'short': item.get('short', ''),
-                        'positive': item.get('positive', ''),
-                        'negative': item.get('nagative', ''),
-                        'hidden': item.get('hidden_intent', '')
+                        'pos': item.get('positive', ''),
+                        'neg': item.get('nagative', ''),
+                        'hid': item.get('hidden_intent', '')
                     })
-        else:
-            print(f"[오류 발생] API 응답 코드: {response.status_code}")
+                
+                all_bills.append(bill_data)
+
+        if not all_bills:
             return []
 
-        if not bills_to_evaluate:
-            print(f"\n[알림] '{target_date}' 마감인 법안 중 새롭게 처리할 법안이 없습니다.")
-            return []
-
-        print(f"\n[시스템] 총 {len(bills_to_evaluate)}개의 법안을 AI가 병렬 분석 중... 🚀")
-        
-        unique_links = []
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_bill = {
-                executor.submit(
-                    evaluate_bill_with_ai, 
-                    b['bill_title'], b['short'], b['positive'], b['negative'], b['hidden']
-                ): b for b in bills_to_evaluate
-            }
-            
-            for future in as_completed(future_to_bill):
-                bill = future_to_bill[future]
-                try:
-                    is_good_bill, ai_reason = future.result()
-                    
-                    if is_good_bill:
-                        print(f"  ✅ [AI 찬성 판별] {bill['bill_title'][:30]}...")
-                        print(f"     ㄴ 사유: {ai_reason}")
-                        title, message = "본 개정안에 찬성합니다.", "본 개정안의 취지에 깊이 공감하며 적극 찬성합니다."
-                    else:
-                        print(f"  ❌ [AI 반대 판별] {bill['bill_title'][:30]}...")
-                        print(f"     ㄴ 사유: {ai_reason}")
-                        title, message = "본 개정안에 반대합니다.", "해당 법안의 문제점이 우려되어 명확히 반대합니다."
-                    
-                    unique_links.append({
-                        'id': bill['id'], 'url': bill['url'],
-                        'title': title, 'message': message, 
-                        'bill_title': bill['bill_title'],
-                        'is_good': is_good_bill
-                    })
-                except Exception as e:
-                    print(f"  ⚠️ [오류] {bill['bill_title'][:30]} 분석 실패: {e}")
+        if bills_to_evaluate:
+            print(f"\n[시스템] 새 법안 {len(bills_to_evaluate)}개를 AI가 병렬 분석 중... 🚀")
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_bill = {
+                    executor.submit(
+                        evaluate_bill_with_ai, 
+                        b['title'], b['short'], b['pos'], b['neg'], b['hid']
+                    ): b for b in bills_to_evaluate
+                }
+                
+                for future in as_completed(future_to_bill):
+                    b_ref = future_to_bill[future]['ref']
+                    try:
+                        is_good, reason = future.result()
+                        b_ref['is_good'] = is_good
+                        b_ref['ai_reason'] = reason
+                        status_icon = "✅ [찬성]" if is_good else "❌ [반대]"
+                        print(f"  {status_icon} {b_ref['bill_title'][:30]}...")
+                        print(f"     ㄴ 사유: {reason}")
+                    except Exception as e:
+                        b_ref['ai_reason'] = f"분석 실패: {e}"
 
     except Exception as e:
-        print(f"[오류 발생] 분석 중 문제 발생: {e}")
+        print(f"[오류 발생] {e}")
         return []
 
-    print(f"\n총 {len(unique_links)}개의 법안에 대한 AI 판별 완료!\n")
-    return unique_links
+    return all_bills
 
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else None
-    if target and re.match(r'\d{4}-\d{2}-\d{2}', target):
-        fetch_and_print_links(target)
-    else:
-        print("\n[오류] 날짜 형식이 올바르지 않습니다.")
+    if target: fetch_and_print_links(target)
