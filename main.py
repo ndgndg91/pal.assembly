@@ -51,6 +51,24 @@ if __name__ == "__main__":
         if user_input:
             target_date = user_input
 
+    # 0. 날짜 중복 체크 (백로그 확인)
+    history_file = os.path.join(os.path.dirname(__file__), 'processed_bills.json')
+    if target_date and os.path.exists(history_file):
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+                processed_dates = history_data.get('processed_dates', [])
+                if target_date in processed_dates:
+                    print(f"\n" + "!"*60)
+                    print(f" [주의] {target_date}는 이미 처리가 완료된 날짜입니다.")
+                    print("!"*60)
+                    re_confirm = input(" >>> 그래도 다시 조회하시겠습니까? (y/n): ").strip().lower()
+                    if re_confirm != 'y':
+                        print("[시스템] 사용자가 취소하여 종료합니다.")
+                        sys.exit(0)
+        except Exception:
+            pass
+
     # 1. 법안 데이터 자동 추출 및 AI 판별
     tasks = fetch_links.fetch_and_print_links(target_date)
     
@@ -71,23 +89,30 @@ if __name__ == "__main__":
 
     # 3. 백로그 업데이트 (중복 처리 방지)
     try:
-        history_file = os.path.join(os.path.dirname(__file__), 'processed_bills.json')
         processed_ids = []
+        processed_dates = []
         if os.path.exists(history_file):
             with open(history_file, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
                 processed_ids = history_data.get('processed_ids', [])
+                processed_dates = history_data.get('processed_dates', [])
         
         # 현재 작업 목록의 ID 추가 (중복 제거)
         current_ids = [t['id'] for t in tasks]
         new_processed_ids = sorted(list(set(processed_ids + current_ids)))
         
+        # 날짜 추가 (중복 제거)
+        if target_date and target_date not in processed_dates:
+            processed_dates.append(target_date)
+        new_processed_dates = sorted(processed_dates)
+        
         with open(history_file, 'w', encoding='utf-8') as f:
             json.dump({
                 'processed_ids': new_processed_ids, 
+                'processed_dates': new_processed_dates,
                 'last_updated': time.strftime('%Y-%m-%d %H:%M:%S')
             }, f, indent=4, ensure_ascii=False)
-        print(f"[시스템] {len(current_ids)}개의 법안을 백로그에 등록했습니다. (다음 실행 시 자동 제외)")
+        print(f"[시스템] {len(current_ids)}개의 법안과 날짜({target_date})를 백로그에 등록했습니다.")
     except Exception as e:
         print(f"[경고] 백로그 업데이트 중 오류 발생: {e}")
 
