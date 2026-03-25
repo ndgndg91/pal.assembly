@@ -1,6 +1,8 @@
 import sys
 import time
 import tempfile
+import json
+import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -66,6 +68,28 @@ if __name__ == "__main__":
     if confirm == 'n':
         print("\n[시스템] 사용자가 실행을 취소하여 프로그램을 종료합니다.")
         sys.exit(0)
+
+    # 3. 백로그 업데이트 (중복 처리 방지)
+    try:
+        history_file = os.path.join(os.path.dirname(__file__), 'processed_bills.json')
+        processed_ids = []
+        if os.path.exists(history_file):
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+                processed_ids = history_data.get('processed_ids', [])
+        
+        # 현재 작업 목록의 ID 추가 (중복 제거)
+        current_ids = [t['id'] for t in tasks]
+        new_processed_ids = sorted(list(set(processed_ids + current_ids)))
+        
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'processed_ids': new_processed_ids, 
+                'last_updated': time.strftime('%Y-%m-%d %H:%M:%S')
+            }, f, indent=4, ensure_ascii=False)
+        print(f"[시스템] {len(current_ids)}개의 법안을 백로그에 등록했습니다. (다음 실행 시 자동 제외)")
+    except Exception as e:
+        print(f"[경고] 백로그 업데이트 중 오류 발생: {e}")
 
     try:
         driver = setup_driver()
@@ -143,6 +167,8 @@ if __name__ == "__main__":
                         print(f"[{i+1}/{len(tasks)}] 완료: {current_task['url'].split('lgsltPaId=')[1][:15]}")
                     else:
                         print(f"[{i+1}/{len(tasks)}] 오류: 입력창 없음")
+                elif "forUpdate.do" in current_url:
+                    print(f"[{i+1}/{len(tasks)}] 건너뜀: 이미 의견을 등록한 법안입니다.")
                 else:
                     print(f"[{i+1}/{len(tasks)}] 오류: 잘못된 페이지 이동 ({current_url})")
                         

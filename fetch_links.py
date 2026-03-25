@@ -2,8 +2,11 @@ import requests
 import sys
 import re
 import os
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # .env 파일에서 환경 변수 로드
 load_dotenv()
@@ -65,18 +68,29 @@ def evaluate_bill_with_ai(title, short_desc, positive, negative, hidden_intent):
 
 def fetch_and_print_links(target_date):
     """
-    세션을 유지하여 vforkorea.com 의 쿠키를 발급받은 뒤
-    getList.php API를 호출하여 특정 날짜에 마감되는 법안 링크를 추출합니다.
+    사이트 접속 및 API 호출을 통해 법안 리스트를 가져오고 병렬로 분석합니다.
     """
+    # 1. 기존에 처리된 ID 목록 불러오기
+    processed_ids = []
+    current_file_path = Path(__file__).resolve()
+    history_file = current_file_path.parent / "processed_bills.json"
+    
+    if history_file.exists():
+        try:
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+                processed_ids = history_data.get('processed_ids', [])
+            if processed_ids:
+                print(f"[시스템] 백로그에서 {len(processed_ids)}개의 이미 처리된 ID를 불러왔습니다.")
+        except Exception:
+            pass
+
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8,ko-KR;q=0.7',
     }
     
     print(f"[시스템] 사이트 접속 및 보안 쿠키 발급 중...")
-    
-    # 1. 세션 생성 (쿠키 유지)
     session = requests.Session()
     session.headers.update(headers)
     
@@ -84,55 +98,23 @@ def fetch_and_print_links(target_date):
         session.get('https://vforkorea.com/assem/', timeout=10)
     except Exception as e:
         print(f"[오류 발생] 메인 페이지 접속 실패: {e}")
-        return
+        return []
 
-    print(f"[시스템] '{target_date if target_date else '전체'}' 마감 법안을 API 서버에서 탐색 중입니다...")
-    if gemini_api_key:
-        print(f"[시스템] Gemini AI가 법안 내용을 분석하여 자동으로 찬/반을 판별합니다 🤖")
-    else:
-        print(f"[경고] .env 파일에 GEMINI_API_KEY가 없습니다. 모든 법안이 '반대'로 일괄 처리됩니다.")
+    print(f"[시스템] '{target_date if target_date else '전체'}' 마감 법안 탐색 중...")
     
-    # 2. API 호출 헤더 세팅
     api_headers = {
-        'Accept': '*/*',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8,ko-KR;q=0.7',
-        'Connection': 'keep-alive',
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Host': 'vforkorea.com',
-        'Origin': 'https://vforkorea.com',
-        'Referer': 'https://vforkorea.com/assem/',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-origin',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
         'X-Requested-With': 'XMLHttpRequest',
-        'sec-ch-ua': '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"macOS"'
+        'Referer': 'https://vforkorea.com/assem/',
     }
     
-    # 1. 기존에 처리된 ID 목록 불러오기
-    processed_ids = []
-    # main.py에서 호출되므로 프로젝트 루트 기준으로 파일을 찾습니다.
-    history_file = os.path.join(os.path.dirname(__file__), 'processed_bills.json')
-    if os.path.exists(history_file):
-        try:
-            with open(history_file, 'r', encoding='utf-8') as f:
-                history_data = json.load(f)
-                processed_ids = history_data.get('processed_ids', [])
-        except Exception:
-            pass
-
-    unique_links = []
+    bills_to_evaluate = []
     
     try:
         payload = {
-            'start': 0,
-            'size': 500,
+            'start': 0, 'size': 500,
             'keyword': target_date if target_date else '',
-            'align': '',
-            'offMyChecked': 0
+            'align': '', 'offMyChecked': 0
         }
         
         response = session.post('https://vforkorea.com/api2/assembly/getList.php', headers=api_headers, data=payload, timeout=10)
@@ -143,77 +125,70 @@ def fetch_and_print_links(target_date):
             
             for item in items:
                 end_date = item.get('end_date', '')
-                
                 if target_date and target_date not in end_date:
                     continue
                     
                 lgslt_id = item.get('id')
-                if lgslt_id:
-                    # 이미 처리된 ID라면 스킵
-                    if lgslt_id in processed_ids:
-                        continue
-
-                    url = f"https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId={lgslt_id}"
-                    
-                    if not any(u['id'] == lgslt_id for u in unique_links):
-                        bill_title = item.get('title', '제목 없음')
-                        short_desc = item.get('short', '')
-                        positive_desc = item.get('positive', '')
-                        negative_desc = item.get('nagative', '') # JSON key typo is 'nagative'
-                        hidden_intent = item.get('hidden_intent', '')
-                        
-                        # Gemini AI를 이용한 문맥 분석 (숨은 의도와 독소조항까지 심층 분석)
-                        is_good_bill, ai_reason = evaluate_bill_with_ai(bill_title, short_desc, positive_desc, negative_desc, hidden_intent)
-                            
-                        if is_good_bill:
-                            print(f"  ✅ [AI 찬성 판별] {bill_title[:30]}...")
-                            print(f"     ㄴ 사유: {ai_reason}")
-                            title = "본 개정안에 찬성합니다."
-                            message = "본 개정안의 취지에 깊이 공감하며 적극 찬성합니다."
-                        else:
-                            print(f"  ❌ [AI 반대 판별] {bill_title[:30]}...")
-                            print(f"     ㄴ 사유: {ai_reason}")
-                            title = "본 개정안에 반대합니다."
-                            message = "해당 법안의 문제점이 우려되어 명확히 반대합니다."
-                            
-                        unique_links.append({
-                            'id': lgslt_id,
-                            'url': url,
-                            'title': title,
-                            'message': message,
-                            'bill_title': bill_title
-                        })
+                if lgslt_id and lgslt_id not in processed_ids:
+                    bills_to_evaluate.append({
+                        'id': lgslt_id,
+                        'url': f"https://pal.assembly.go.kr/napal/lgsltpa/lgsltpaOpn/forInsert.do?menuNo=&refererDiv=S&lgsltPaId={lgslt_id}",
+                        'bill_title': item.get('title', '제목 없음'),
+                        'short': item.get('short', ''),
+                        'positive': item.get('positive', ''),
+                        'negative': item.get('nagative', ''),
+                        'hidden': item.get('hidden_intent', '')
+                    })
         else:
             print(f"[오류 발생] API 응답 코드: {response.status_code}")
-            return
-                        
-    except Exception as e:
-        print(f"[오류 발생] API 통신 중 문제가 생겼습니다: {e}")
-        return
+            return []
 
-    if not unique_links:
-        print(f"\n[알림] '{target_date}' 마감인 법안을 찾을 수 없습니다.")
+        if not bills_to_evaluate:
+            print(f"\n[알림] '{target_date}' 마감인 법안 중 새롭게 처리할 법안이 없습니다.")
+            return []
+
+        print(f"\n[시스템] 총 {len(bills_to_evaluate)}개의 법안을 AI가 병렬 분석 중... 🚀")
+        
+        unique_links = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_bill = {
+                executor.submit(
+                    evaluate_bill_with_ai, 
+                    b['bill_title'], b['short'], b['positive'], b['negative'], b['hidden']
+                ): b for b in bills_to_evaluate
+            }
+            
+            for future in as_completed(future_to_bill):
+                bill = future_to_bill[future]
+                try:
+                    is_good_bill, ai_reason = future.result()
+                    
+                    if is_good_bill:
+                        print(f"  ✅ [AI 찬성 판별] {bill['bill_title'][:30]}...")
+                        print(f"     ㄴ 사유: {ai_reason}")
+                        title, message = "본 개정안에 찬성합니다.", "본 개정안의 취지에 깊이 공감하며 적극 찬성합니다."
+                    else:
+                        print(f"  ❌ [AI 반대 판별] {bill['bill_title'][:30]}...")
+                        print(f"     ㄴ 사유: {ai_reason}")
+                        title, message = "본 개정안에 반대합니다.", "해당 법안의 문제점이 우려되어 명확히 반대합니다."
+                    
+                    unique_links.append({
+                        'id': bill['id'], 'url': bill['url'],
+                        'title': title, 'message': message, 'bill_title': bill['bill_title']
+                    })
+                except Exception as e:
+                    print(f"  ⚠️ [오류] {bill['bill_title'][:30]} 분석 실패: {e}")
+
+    except Exception as e:
+        print(f"[오류 발생] 분석 중 문제 발생: {e}")
         return []
 
-    print(f"\n총 {len(unique_links)}개의 법안을 찾아 AI 판별을 완료했습니다!\n")
+    print(f"\n총 {len(unique_links)}개의 법안에 대한 AI 판별 완료!\n")
     return unique_links
 
 if __name__ == "__main__":
-    target = None
-    
-    if len(sys.argv) > 1:
-        target = sys.argv[1]
+    target = sys.argv[1] if len(sys.argv) > 1 else None
+    if target and re.match(r'\d{4}-\d{2}-\d{2}', target):
+        fetch_and_print_links(target)
     else:
-        print("\n" + "="*60)
-        print(" [날짜 입력] 추출을 원하는 마감 날짜를 입력하세요.")
-        print(" 형식: YYYY-MM-DD (예: 2026-03-30)")
-        print("="*60)
-        user_input = input(" >>> 날짜 입력: ").strip()
-        if user_input:
-            target = user_input
-    
-    if not target or not re.match(r'\d{4}-\d{2}-\d{2}', target):
-        print("\n[오류] 날짜 형식은 YYYY-MM-DD 이어야 합니다. (예: 2026-03-30)")
-        sys.exit(1)
-        
-    fetch_and_print_links(target)
+        print("\n[오류] 날짜 형식이 올바르지 않습니다.")
