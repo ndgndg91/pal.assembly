@@ -38,6 +38,20 @@ def setup_driver():
     driver.maximize_window()
     return driver
 
+def toggle_bill_status(task):
+    """
+    법안의 찬성/반대 상태를 토글(반전)합니다.
+    """
+    if task['is_good']:
+        task['is_good'] = False
+        task['title'] = "본 개정안에 반대합니다."
+        task['message'] = "해당 법안의 문제점이 우려되어 명확히 반대합니다."
+    else:
+        task['is_good'] = True
+        task['title'] = "본 개정안에 찬성합니다."
+        task['message'] = "본 개정안의 취지에 깊이 공감하며 적극 찬성합니다."
+    return task
+
 if __name__ == "__main__":
     target_date = sys.argv[1] if len(sys.argv) > 1 else None
     
@@ -76,16 +90,44 @@ if __name__ == "__main__":
         print("\n[시스템] 등록할 법안이 없어 프로그램을 종료합니다.")
         sys.exit(0)
 
-    # 2. 사용자 최종 검토 단계
-    print("\n" + "="*60)
-    print(" [최종 검토] 위 출력된 AI 판별 결과(찬성/반대)를 확인해 주세요.")
-    print(" 이대로 브라우저를 열고 의견 등록 자동화를 시작하시겠습니까?")
-    print("="*60)
-    confirm = input(" >>> 진행하려면 'y' 또는 Enter를, 취소하려면 'n'을 입력하세요: ").strip().lower()
-    
-    if confirm == 'n':
-        print("\n[시스템] 사용자가 실행을 취소하여 프로그램을 종료합니다.")
-        sys.exit(0)
+    # 2. 사용자 최종 검토 및 개별 수정 단계
+    while True:
+        print("\n" + "="*60)
+        print(" [최종 검토 및 수정] 현재 설정된 찬성/반대 목록입니다.")
+        print("-" * 60)
+        for i, t in enumerate(tasks):
+            status = "✅ [찬성]" if t['is_good'] else "❌ [반대]"
+            print(f" {i+1:2d}. {status} {t['bill_title'][:40]}...")
+        print("-" * 60)
+        print(" 이대로 브라우저를 열고 의견 등록 자동화를 시작하시겠습니까?")
+        print(" [진행: y/Enter]  [취소: n]  [상태 뒤집기: e (번호 입력)]")
+        print("="*60)
+        
+        choice = input(" >>> 선택: ").strip().lower()
+        
+        if choice == 'n':
+            exit_confirm = input(" >>> 정말 종료하시겠습니까? 수정하신 내용이 모두 사라집니다. (y/n): ").strip().lower()
+            if exit_confirm == 'y':
+                print("\n[시스템] 사용자가 실행을 취소하여 프로그램을 종료합니다.")
+                sys.exit(0)
+            else:
+                print(" [시스템] 종료를 취소하고 검토 단계로 돌아갑니다.")
+                continue # 다시 리스트로 돌아감
+        elif choice == 'e':
+            edit_nums = input(" >>> 찬반을 바꿀 법안 번호를 입력하세요 (쉼표로 구분 가능): ").strip()
+            try:
+                # 쉼표나 공백으로 구분된 번호들 파싱
+                indices = [int(n.strip()) - 1 for n in edit_nums.replace(',', ' ').split() if n.strip().isdigit()]
+                for idx in indices:
+                    if 0 <= idx < len(tasks):
+                        tasks[idx] = toggle_bill_status(tasks[idx])
+                        print(f" [시스템] {idx+1}번 법안의 상태를 변경했습니다.")
+                continue # 리스트 다시 출력
+            except Exception as e:
+                print(f" [오류] 번호 입력이 잘못되었습니다: {e}")
+                continue
+        elif choice == 'y' or choice == '':
+            break # 반복 종료하고 다음 단계 진행
 
     # 3. 백로그 업데이트 (중복 처리 방지)
     try:
@@ -97,11 +139,8 @@ if __name__ == "__main__":
                 processed_ids = history_data.get('processed_ids', [])
                 processed_dates = history_data.get('processed_dates', [])
         
-        # 현재 작업 목록의 ID 추가 (중복 제거)
         current_ids = [t['id'] for t in tasks]
         new_processed_ids = sorted(list(set(processed_ids + current_ids)))
-        
-        # 날짜 추가 (중복 제거)
         if target_date and target_date not in processed_dates:
             processed_dates.append(target_date)
         new_processed_dates = sorted(processed_dates)
@@ -118,33 +157,23 @@ if __name__ == "__main__":
 
     try:
         driver = setup_driver()
-        
-        # 1. 오직 첫 번째 작업 페이지만 엽니다. (세션 충돌 방지)
         print(f"[시스템] 로그인을 위해 첫 번째 법안 페이지로 이동합니다...")
         driver.get(tasks[0]['url'])
         
         try:
-            # 혹시 접속 직후 팝업이 뜨면 닫기
             time.sleep(1)
             driver.switch_to.alert.accept()
-        except Exception:
-            pass
+        except Exception: pass
 
         print("\n" + "="*60)
         print(" [중요] 열려있는 창에서 로그인을 완료해 주세요!")
-        print(" (세션 충돌을 막기 위해 탭을 하나만 열었습니다.)")
-        print(" 로그인이 완전히 끝난 후 (의견 등록 페이지가 보이면),")
-        print(" 아래 터미널(이 창)에서 아무 키나 누르고 [Enter]를 치세요!")
+        print(" 로그인이 끝나면 아래 터미널에서 엔터를 치세요!")
         print("="*60 + "\n")
-
-        # 파이썬 프로그램 완전 정지
         input(" >>> 로그인을 완료하셨다면 아무 키나 누르고 Enter 키를 치세요: ")
 
-        print(f"\n[시스템] 총 {len(tasks)}개의 법안 세팅을 매우 빠르게 진행합니다...\n")
+        print(f"\n[시스템] 총 {len(tasks)}개의 법안 세팅을 진행합니다...\n")
 
-        # 2. 로그인 완료 후, 순차적으로 새 탭을 열며 작업 수행
         main_handle = driver.current_window_handle
-        
         for i, current_task in enumerate(tasks):
             try:
                 if i == 0:
@@ -155,17 +184,11 @@ if __name__ == "__main__":
                     driver.switch_to.window(driver.window_handles[-1])
                     driver.get(current_task['url'])
                 
-                # 속도 향상: 고정 대기시간 대신 WebDriverWait을 사용하여 
-                # 의견 등록 폼이 로드되는 즉시 작업을 진행합니다.
                 try:
-                    WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.ID, "txt_sj"))
-                    )
-                except Exception:
-                    pass # 타임아웃 되더라도 스크립트 실행은 시도
+                    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "txt_sj")))
+                except Exception: pass
                 
                 current_url = driver.current_url
-                
                 if "forInsert.do" in current_url:
                     script = f"""
                         function setValue(id, val) {{
@@ -196,18 +219,14 @@ if __name__ == "__main__":
                     print(f"[{i+1}/{len(tasks)}] 건너뜀: 이미 의견을 등록한 법안입니다.")
                 else:
                     print(f"[{i+1}/{len(tasks)}] 오류: 잘못된 페이지 이동 ({current_url})")
-                        
             except Exception as e:
                 print(f"[{i+1}/{len(tasks)}] 예외 발생: {e}")
 
         print("\n" + "="*60)
         print(" [최종 완료] 모든 탭의 세팅이 끝났습니다!")
-        print(" 각 탭을 확인하시고, 보안문자만 입력하여 [등록]을 눌러주세요.")
         print("="*60)
-        
         while True:
             time.sleep(5)
-            # 모든 창이 닫히면 프로그램 종료
             if not driver.window_handles: break
 
     except KeyboardInterrupt:

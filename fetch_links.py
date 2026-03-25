@@ -79,11 +79,12 @@ def fetch_and_print_links(target_date):
         try:
             with open(history_file, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
-                processed_ids = history_data.get('processed_ids', [])
+                # 검색 속도 최적화를 위해 set으로 변환 (O(1) lookup)
+                processed_ids = set(history_data.get('processed_ids', []))
             if processed_ids:
                 print(f"[시스템] 백로그에서 {len(processed_ids)}개의 이미 처리된 ID를 불러왔습니다.")
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[경고] 백로그 파일을 읽는 중 오류 발생: {e}")
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
@@ -174,7 +175,9 @@ def fetch_and_print_links(target_date):
                     
                     unique_links.append({
                         'id': bill['id'], 'url': bill['url'],
-                        'title': title, 'message': message, 'bill_title': bill['bill_title']
+                        'title': title, 'message': message, 
+                        'bill_title': bill['bill_title'],
+                        'is_good': is_good_bill
                     })
                 except Exception as e:
                     print(f"  ⚠️ [오류] {bill['bill_title'][:30]} 분석 실패: {e}")
