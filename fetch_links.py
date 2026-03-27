@@ -55,6 +55,9 @@ def evaluate_bill_with_ai(title, short_desc, positive, negative, hidden_intent):
         response = client.models.generate_content(
             model='gemini-flash-latest',
             contents=prompt,
+            config={
+                'temperature': 0,
+            }
         )
         raw_result = response.text.strip()
         if "|" in raw_result:
