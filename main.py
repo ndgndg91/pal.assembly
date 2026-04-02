@@ -157,12 +157,27 @@ if __name__ == "__main__":
                 try:
                     driver.switch_to.window(task['handle'])
                     
+                    # [추가] Alert 확인 (이미 처리된 법안인 경우 등)
+                    try:
+                        alert = driver.switch_to.alert
+                        alert_text = alert.text
+                        print(f"[{task_idx+1}/{len(tasks)}] 알림 감지: {alert_text}")
+                        alert.accept() # 확인 클릭
+                        if "이미" in alert_text or "등록" in alert_text:
+                            processed_ids_successfully.append(task['id'])
+                            driver.close() # 처리된 탭은 닫아서 메모리 확보
+                            continue
+                    except Exception:
+                        # Alert가 없으면 정상 진행
+                        pass
+
                     # 'eager' 모드이므로 필수 요소가 나타날 때까지만 대기
                     WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.ID, "txt_sj")))
                     
                     if "forUpdate.do" in driver.current_url:
-                        print(f"[{task_idx+1}/{len(tasks)}] 건너뜀: 이미 등록됨")
+                        print(f"[{task_idx+1}/{len(tasks)}] 건너뜀: 이미 등록됨 (URL 확인)")
                         processed_ids_successfully.append(task['id'])
+                        driver.close() # 이미 등록된 탭은 닫기
                         continue
                     
                     if "forInsert.do" not in driver.current_url:
@@ -172,19 +187,59 @@ if __name__ == "__main__":
                     fill_script = """
                         var title = arguments[0];
                         var msg = arguments[1];
-                        var tEl = document.getElementById('txt_sj');
-                        var cEl = document.getElementById('txt_cn');
-                        if(tEl) { tEl.value = title; tEl.dispatchEvent(new Event('change')); }
-                        if(cEl) { cEl.value = msg; cEl.dispatchEvent(new Event('change')); }
                         
-                        // 보안문자 포커스 시도 (약간의 시간차를 두어 확실히 포커스)
-                        setTimeout(function() {
-                            var caps = document.getElementById('caps_answer');
-                            if(caps) {
-                                caps.focus();
-                                caps.click();
+                        function fillForm() {
+                            var tEl = document.getElementById('txt_sj');
+                            var cEl = document.getElementById('txt_cn');
+                            if(tEl) { tEl.value = title; tEl.dispatchEvent(new Event('change')); }
+                            if(cEl) { cEl.value = msg; cEl.dispatchEvent(new Event('change')); }
+                        }
+                        
+                        function focusCaps() {
+                            // 1. 메인 문서에서 탐색
+                            var caps = document.getElementById('caps_answer') || document.querySelector('input[name="caps_answer"]');
+                            
+                            // 2. 모든 프레임 내부 탐색 (iframe 내부에 있을 경우 대비)
+                            if (!caps) {
+                                var iframes = document.getElementsByTagName('iframe');
+                                for (var i = 0; i < iframes.length; i++) {
+                                    try {
+                                        var frameDoc = iframes[i].contentDocument || iframes[i].contentWindow.document;
+                                        caps = frameDoc.getElementById('caps_answer') || frameDoc.querySelector('input[name="caps_answer"]');
+                                        if (caps) break;
+                                    } catch(e) {}
+                                }
                             }
+
+                            if (caps) {
+                                caps.focus();
+                                caps.select();
+                                caps.style.boxShadow = '0 0 10px red'; // 시각적 확인
+                                caps.style.border = '2px solid red';
+                                return true;
+                            }
+                            return false;
+                        }
+
+                        fillForm();
+                        
+                        // 탭이 활성화되거나 클릭될 때마다 포커스 강제
+                        window.onfocus = focusCaps;
+                        document.addEventListener('mousedown', function() {
+                            setTimeout(focusCaps, 50);
+                        }, true);
+                        
+                        // 30초 동안 0.5초 간격으로 끈질기게 포커스 시도 (사이트 자체 스크립트 이기기)
+                        var attempts = 0;
+                        var interval = setInterval(function() {
+                            if (focusCaps()) {
+                                // 포커스 성공해도 5초 정도는 더 유지 (가로채기 방지)
+                                if (attempts > 10) { /* clearInterval(interval); */ }
+                            }
+                            if (attempts++ > 60) clearInterval(interval);
                         }, 500);
+                        
+                        console.log("[자동화] 폼 채우기 및 포커스 리스너 등록 완료");
                     """
                     driver.execute_script(fill_script, task['title'], task['message'])
 
