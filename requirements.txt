@@ -1,4 +1,6 @@
-selenium
-webdriver-manager
-google-genai
+requests
 python-dotenv
+google-genai
+selenium
+undetected-chromedriver
+beautifulsoup4

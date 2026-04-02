@@ -3,29 +3,25 @@ import time
 import tempfile
 import json
 import os
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 import fetch_links
 
 def setup_driver():
-    chrome_options = Options()
+    options = uc.ChromeOptions()
     temp_dir = tempfile.mkdtemp(prefix="assembly_helper_")
-    chrome_options.add_argument(f"user-data-dir={temp_dir}")
-    chrome_options.set_capability("unhandledPromptBehavior", "accept")
-    chrome_options.add_experimental_option("prefs", {
-        "credentials_enable_service": False,
-        "profile.password_manager_enabled": False
-    })
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
+    options.add_argument(f"--user-data-dir={temp_dir}")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-search-engine-choice-screen")
+    
+    # 페이지 로드 전략: 'eager' (DOM만 로드되면 즉시 제어)
+    options.page_load_strategy = 'eager'
+    
     print("[시스템] 브라우저를 실행합니다...")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    driver = uc.Chrome(options=options, version_main=146)
     driver.maximize_window()
     return driver
 
@@ -131,43 +127,76 @@ if __name__ == "__main__":
 
         print(f"\n[시스템] 남은 {len(tasks)}개의 법안 세팅을 시작합니다...\n")
         processed_ids_successfully = []
-        main_handle = driver.current_window_handle
-        
-        for i, current_task in enumerate(tasks):
-            try:
-                if i == 0:
-                    driver.switch_to.window(main_handle)
-                    driver.get(current_task['url'])
-                else:
-                    driver.execute_script("window.open('');")
-                    driver.switch_to.window(driver.window_handles[-1])
-                    driver.get(current_task['url'])
+
+        # 배치 단위 처리 (안정성과 속도의 균형)
+        BATCH_SIZE = 4
+        for i in range(0, len(tasks), BATCH_SIZE):
+            batch = tasks[i:i + BATCH_SIZE]
+            
+            # 1. 배치 단위로 탭 미리 열기
+            for j, task in enumerate(batch):
+                task_idx = i + j
+                try:
+                    if task_idx == 0:
+                        task['handle'] = driver.window_handles[0]
+                        driver.get(task['url'])
+                    else:
+                        # Selenium 4 표준 방식: 새 탭 열기 및 자동 전환
+                        driver.switch_to.new_window('tab')
+                        driver.get(task['url'])
+                        task['handle'] = driver.current_window_handle
+                except Exception as e:
+                    print(f"[{task_idx+1}/{len(tasks)}] 탭 생성 실패: {str(e)[:50]}")
+                    task['handle'] = None
+
+            # 2. 열린 탭들을 돌며 초고속 폼 채우기
+            for j, task in enumerate(batch):
+                task_idx = i + j
+                if not task.get('handle'): continue
                 
-                try: WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.ID, "txt_sj")))
-                except Exception: pass
-                
-                current_url = driver.current_url
-                if "forInsert.do" in current_url:
-                    script = f"""
-                        function setValue(id, val) {{
-                            var el = document.getElementById(id);
-                            if(el) {{ el.value = val; el.dispatchEvent(new Event('input', {{ bubbles: true }})); el.dispatchEvent(new Event('change', {{ bubbles: true }})); return true; }}
-                            return false;
-                        }}
-                        setValue('txt_sj', "{current_task['title']}");
-                        setValue('txt_cn', `{current_task['message']}`);
-                        var captcha = document.getElementById('catpchaAnswer');
-                        if(captcha) {{ captcha.scrollIntoView({{block: 'center'}}); captcha.focus(); }}
-                        return true;
+                try:
+                    driver.switch_to.window(task['handle'])
+                    
+                    # 'eager' 모드이므로 필수 요소가 나타날 때까지만 대기
+                    WebDriverWait(driver, 8).until(EC.presence_of_element_located((By.ID, "txt_sj")))
+                    
+                    if "forUpdate.do" in driver.current_url:
+                        print(f"[{task_idx+1}/{len(tasks)}] 건너뜀: 이미 등록됨")
+                        processed_ids_successfully.append(task['id'])
+                        continue
+                    
+                    if "forInsert.do" not in driver.current_url:
+                        time.sleep(1) # 마지막 확인용 짧은 대기
+
+                    # [최적화] send_keys 대신 JS로 즉시 주입 (비약적으로 빠름)
+                    fill_script = """
+                        var title = arguments[0];
+                        var msg = arguments[1];
+                        var tEl = document.getElementById('txt_sj');
+                        var cEl = document.getElementById('txt_cn');
+                        if(tEl) { tEl.value = title; tEl.dispatchEvent(new Event('change')); }
+                        if(cEl) { cEl.value = msg; cEl.dispatchEvent(new Event('change')); }
+                        
+                        // 보안문자 포커스 시도 (약간의 시간차를 두어 확실히 포커스)
+                        setTimeout(function() {
+                            var caps = document.getElementById('caps_answer');
+                            if(caps) {
+                                caps.focus();
+                                caps.click();
+                            }
+                        }, 500);
                     """
-                    if driver.execute_script(script):
-                        print(f"[{i+1}/{len(tasks)}] 완료: {current_task['bill_title'][:20]}...")
-                        processed_ids_successfully.append(current_task['id'])
-                elif "forUpdate.do" in current_url:
-                    print(f"[{i+1}/{len(tasks)}] 건너뜀: 이미 등록됨")
-                    processed_ids_successfully.append(current_task['id'])
-            except Exception as e:
-                print(f"[{i+1}/{len(tasks)}] 예외: {e}")
+                    driver.execute_script(fill_script, task['title'], task['message'])
+
+                    print(f"[{task_idx+1}/{len(tasks)}] 완료: {task['bill_title'][:20]}...")
+                    processed_ids_successfully.append(task['id'])
+                    
+                except Exception as e:
+                    # 윈도우가 이미 닫혔거나 하는 경우 대비
+                    if "no such window" in str(e).lower():
+                        print(f"[{task_idx+1}/{len(tasks)}] 오류: 브라우저 창을 찾을 수 없음")
+                    else:
+                        print(f"[{task_idx+1}/{len(tasks)}] 폼 작성 중 오류: {str(e)[:50]}")
 
         if processed_ids_successfully:
             save_backlog(processed_ids_successfully, target_date)

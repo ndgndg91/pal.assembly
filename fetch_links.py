@@ -1,6 +1,5 @@
 import requests
 import sys
-import re
 import os
 import json
 from pathlib import Path
@@ -154,7 +153,7 @@ def fetch_and_print_links(target_date):
 
         if bills_to_evaluate:
             print(f"\n[시스템] 새 법안 {len(bills_to_evaluate)}개를 AI가 병렬 분석 중... 🚀")
-            with ThreadPoolExecutor(max_workers=5) as executor:
+            with ThreadPoolExecutor(max_workers=15) as executor:
                 future_to_bill = {
                     executor.submit(
                         evaluate_bill_with_ai, 
@@ -168,7 +167,7 @@ def fetch_and_print_links(target_date):
                         is_good, reason = future.result()
                         b_ref['is_good'] = is_good
                         b_ref['ai_reason'] = reason
-                        status_icon = "✅ [찬성]" if is_good else "❌ [반대]"
+                        status_icon = "✅ [분석 찬성]" if is_good else "❌ [분석 반대]"
                         print(f"  {status_icon} {b_ref['bill_title'][:30]}...")
                         print(f"     ㄴ 사유: {reason}")
                     except Exception as e:
