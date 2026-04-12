@@ -141,34 +141,53 @@ if __name__ == "__main__":
                         task['handle'] = driver.window_handles[0]
                         driver.get(task['url'])
                     else:
-                        # Selenium 4 표준 방식: 새 탭 열기 및 자동 전환
                         driver.switch_to.new_window('tab')
                         driver.get(task['url'])
                         task['handle'] = driver.current_window_handle
+                    
+                    # [보완] 탭 생성 직후 즉시 Alert 체크 (다음 탭 생성이 막히는 것 방지)
+                    try:
+                        alert = driver.switch_to.alert
+                        alert_text = alert.text
+                        alert.accept()
+                        if "이미" in alert_text or "등록" in alert_text:
+                            print(f"[{task_idx+1}/{len(tasks)}] 건너뜀: 이미 등록됨 (Alert 확인)")
+                            processed_ids_successfully.append(task['id'])
+                            task['skip'] = True 
+                    except Exception:
+                        pass # Alert 없으면 정상
+
                 except Exception as e:
+                    # Alert가 떠있어서 생성이 실패한 경우 한 번 더 시도
+                    try:
+                        alert = driver.switch_to.alert
+                        alert.accept()
+                        print(f"[{task_idx+1}/{len(tasks)}] 알림 처리 후 재시도...")
+                        # 재시도 로직은 복잡해지므로 여기서는 건너뛰고 다음 배치에서 처리되게 함
+                    except:
+                        pass
                     print(f"[{task_idx+1}/{len(tasks)}] 탭 생성 실패: {str(e)[:50]}")
                     task['handle'] = None
 
             # 2. 열린 탭들을 돌며 초고속 폼 채우기
             for j, task in enumerate(batch):
                 task_idx = i + j
-                if not task.get('handle'): continue
+                if not task.get('handle') or task.get('skip'): continue
                 
                 try:
                     driver.switch_to.window(task['handle'])
                     
-                    # [추가] Alert 확인 (이미 처리된 법안인 경우 등)
+                    # 다시 한 번 Alert 확인 (페이지 로딩 중 뒤늦게 뜨는 경우 대비)
                     try:
                         alert = driver.switch_to.alert
                         alert_text = alert.text
-                        print(f"[{task_idx+1}/{len(tasks)}] 알림 감지: {alert_text}")
-                        alert.accept() # 확인 클릭
+                        alert.accept()
                         if "이미" in alert_text or "등록" in alert_text:
-                            processed_ids_successfully.append(task['id'])
-                            driver.close() # 처리된 탭은 닫아서 메모리 확보
+                            if task['id'] not in processed_ids_successfully:
+                                processed_ids_successfully.append(task['id'])
+                            driver.close()
                             continue
                     except Exception:
-                        # Alert가 없으면 정상 진행
                         pass
 
                     # 'eager' 모드이므로 필수 요소가 나타날 때까지만 대기
