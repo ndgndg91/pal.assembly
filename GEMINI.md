@@ -18,7 +18,10 @@
 - **Level 3**: 30초 동안 0.5초 간격으로 `setInterval`을 돌려 끈질기게 포커스 시도.
 - **Level 4**: `iframe` 전수 조사 로직 추가 (모든 프레임을 뒤져서 `caps_answer` 탐색).
 - **Level 5**: 물리적 클릭 시뮬레이션 (`mousedown`, `mouseup` 이벤트 발생) 및 `tabIndex` 조작.
+- **Level 6 (실패)**: **CDP (Chrome DevTools Protocol)**를 활용한 물리적 좌표 클릭(`Input.dispatchMouseEvent`) 및 `DOM.focus` 주입 시도. `getBoundingClientRect()`로 위치를 계산했으나, 여전히 포커스 탈취를 막지 못하거나 좌표 오차로 인해 실패함.
 
 ### 향후 과제
-- 실제 브라우저 콘솔에서 `document.getElementById('caps_answer')`가 `null`을 반환하는지, 아니면 존재하지만 포커스만 안 먹는 것인지 확인 필요.
-- 보안문자 필드가 `iframe` 내부에 있다면 해당 `iframe`의 `src` 주소를 직접 파악해야 함.
+- 실제 환경에서 CDP 기반 좌표 클릭이 왜 실패했는지(Iframe 도메인 이슈 등) 정밀 분석 필요.
+- 보안문자 영역이 Cross-Origin Iframe인 경우를 대비하여 확장 프로그램(Extension) 기반의 포커스 주입 방식 검토.
+- 모든 브라우저 창 종료 시 프로그램이 자동 종료되는 로직(현재 적용됨)의 안정성 모니터링.
+

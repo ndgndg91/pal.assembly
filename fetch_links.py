@@ -59,14 +59,22 @@ def evaluate_bill_with_ai(title, short_desc, positive, negative, hidden_intent):
             }
         )
         raw_result = response.text.strip()
+        
+        # '결과|이유' 형태에서 '이유' 부분에 불필요한 문구가 섞이는 경우 대비
         if "|" in raw_result:
             decision, reason = raw_result.split("|", 1)
         else:
             decision = raw_result
             reason = "사유 미제공"
             
+        # 결정 부분에서 '결과:', '판단:' 등 불필요한 접두어 제거
+        decision = decision.replace("결과:", "").replace("판단:", "").strip()
         is_good = "찬성" in decision
-        return is_good, reason.strip()
+        
+        # 사유 부분에서 '이유:', '사유:' 및 줄바꿈 정리
+        reason = reason.replace("이유:", "").replace("사유:", "").replace("\n", " ").strip()
+        
+        return is_good, reason
     except Exception as e:
         return False, f"AI 평가 중 오류 발생: {e}"
 

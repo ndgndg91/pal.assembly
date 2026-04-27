@@ -21,7 +21,8 @@ def setup_driver():
     options.page_load_strategy = 'eager'
     
     print("[시스템] 브라우저를 실행합니다...")
-    driver = uc.Chrome(options=options, version_main=146)
+    # 현재 설치된 크롬 버전(147)에 맞춰 드라이버 버전 고정
+    driver = uc.Chrome(options=options, version_main=147)
     driver.maximize_window()
     return driver
 
@@ -163,7 +164,6 @@ if __name__ == "__main__":
                         alert = driver.switch_to.alert
                         alert.accept()
                         print(f"[{task_idx+1}/{len(tasks)}] 알림 처리 후 재시도...")
-                        # 재시도 로직은 복잡해지므로 여기서는 건너뛰고 다음 배치에서 처리되게 함
                     except:
                         pass
                     print(f"[{task_idx+1}/{len(tasks)}] 탭 생성 실패: {str(e)[:50]}")
@@ -215,10 +215,7 @@ if __name__ == "__main__":
                         }
                         
                         function focusCaps() {
-                            // 1. 메인 문서에서 탐색
                             var caps = document.getElementById('caps_answer') || document.querySelector('input[name="caps_answer"]');
-                            
-                            // 2. 모든 프레임 내부 탐색 (iframe 내부에 있을 경우 대비)
                             if (!caps) {
                                 var iframes = document.getElementsByTagName('iframe');
                                 for (var i = 0; i < iframes.length; i++) {
@@ -229,36 +226,17 @@ if __name__ == "__main__":
                                     } catch(e) {}
                                 }
                             }
-
                             if (caps) {
                                 caps.focus();
                                 caps.select();
-                                caps.style.boxShadow = '0 0 10px red'; // 시각적 확인
-                                caps.style.border = '2px solid red';
+                                caps.style.boxShadow = '0 0 10px red';
                                 return true;
                             }
                             return false;
                         }
 
                         fillForm();
-                        
-                        // 탭이 활성화되거나 클릭될 때마다 포커스 강제
-                        window.onfocus = focusCaps;
-                        document.addEventListener('mousedown', function() {
-                            setTimeout(focusCaps, 50);
-                        }, true);
-                        
-                        // 30초 동안 0.5초 간격으로 끈질기게 포커스 시도 (사이트 자체 스크립트 이기기)
-                        var attempts = 0;
-                        var interval = setInterval(function() {
-                            if (focusCaps()) {
-                                // 포커스 성공해도 5초 정도는 더 유지 (가로채기 방지)
-                                if (attempts > 10) { /* clearInterval(interval); */ }
-                            }
-                            if (attempts++ > 60) clearInterval(interval);
-                        }, 500);
-                        
-                        console.log("[자동화] 폼 채우기 및 포커스 리스너 등록 완료");
+                        focusCaps();
                     """
                     driver.execute_script(fill_script, task['title'], task['message'])
 
@@ -266,7 +244,6 @@ if __name__ == "__main__":
                     processed_ids_successfully.append(task['id'])
                     
                 except Exception as e:
-                    # 윈도우가 이미 닫혔거나 하는 경우 대비
                     if "no such window" in str(e).lower():
                         print(f"[{task_idx+1}/{len(tasks)}] 오류: 브라우저 창을 찾을 수 없음")
                     else:
@@ -278,10 +255,22 @@ if __name__ == "__main__":
 
         print("\n" + "="*60)
         print(" [최종 완료] 모든 탭의 세팅이 끝났습니다!")
+        print(" [안내] 브라우저의 모든 창을 닫으면 프로그램이 자동 종료됩니다.")
         print("="*60)
+        
+        # 브라우저 감시 루프 강화
         while True:
-            time.sleep(5)
-            if not driver.window_handles: break
+            try:
+                # 창 핸들을 가져오려고 시도 (브라우저가 닫히면 에러 발생)
+                handles = driver.window_handles
+                if not handles:
+                    print("\n[시스템] 모든 창이 닫혀 프로그램을 종료합니다.")
+                    break
+            except Exception:
+                # 브라우저와 연결이 끊긴 경우 (사용자가 강제 종료 등)
+                print("\n[시스템] 브라우저 연결이 끊겨 프로그램을 종료합니다.")
+                break
+            time.sleep(3) # 감시 주기 3초
 
     except KeyboardInterrupt:
         sys.exit(0)
